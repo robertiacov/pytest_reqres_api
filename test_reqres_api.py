@@ -302,31 +302,39 @@ def create_user_concurrent_timed(index):
         "duration": duration
     }
 
+MAX_AVG_RESPONSE_TIME = 2.0  # seconds
+USER_COUNT = 10
+MAX_WORKERS = 5
+
 @pytest.mark.load
-def test_create_multiple_users_concurrently_timed(count=10, max_workers=5):
-    results = []
+def test_create_users_concurrent_with_threshold():
+    def create_user_timed(index):
+        payload = {
+            "name": f"user_{index}",
+            "job": f"tester_{index}"
+        }
+        start = time.time()
+        response = create_user(payload)
+        duration = time.time() - start
+        assert response.status_code == 201
+        return duration
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(create_user_concurrent_timed, i) for i in range(count)]
+    durations = []
 
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = [executor.submit(create_user_timed, i) for i in range(USER_COUNT)]
         for future in as_completed(futures):
             try:
-                result = future.result()
-                results.append(result)
+                durations.append(future.result())
             except Exception as e:
-                print(f"Error during user creation: {e}")
+                pytest.fail(f"User creation failed: {e}")
 
-    durations = [r["duration"] for r in results]
-    avg_duration = round(sum(durations) / len(durations), 3) if durations else 0
+    avg_time = sum(durations) / len(durations)
+    print(f"\nAverage response time: {avg_time:.2f}s")
 
-    print("\n--- Summary ---")
-    for r in results:
-        print(f"User {r['index']} - Time: {r['duration']}s")
-
-    print(f"\nTotal Users: {len(results)}")
-    print(f"Average Response Time: {avg_duration}s")
-
-    assert len(results) == count, f"Expected {count} users, but got {len(results)}"
+    assert avg_time <= MAX_AVG_RESPONSE_TIME, (
+        f"Average response time {avg_time:.2f}s exceeds threshold of {MAX_AVG_RESPONSE_TIME}s"
+    )
 
 
 def get_users(id):
