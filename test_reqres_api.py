@@ -128,7 +128,7 @@ def test_update_user():
         "job" : "New job title"
     }
 
-    update_user_response = update_user(new_payload)
+    update_user_response = update_user(user_id['id'], new_payload)
     assert update_user_response.status_code == 200
     #print(update_user_response)
     update_user_data = update_user_response.json()
@@ -152,7 +152,7 @@ def test_patch_user():
         "job" : "Patched job title"
     }
 
-    patch_user_response = patch_user(new_payload)
+    patch_user_response = patch_user(user_id['id'], new_payload)
     assert patch_user_response.status_code == 200
     print(patch_user_response)
     patch_user_data = patch_user_response.json()
